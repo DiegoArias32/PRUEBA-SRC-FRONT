@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { apiService, ClienteDto, SedeDto, TipoCitaDto } from '../../services/api';
@@ -49,18 +49,7 @@ export default function AgendamientoCitasPage() {
   });
 
   // Load initial data
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  // Load available hours when date or sede changes
-  useEffect(() => {
-    if (formData.appointmentDate && formData.sede && step === 'form') {
-      loadHorasDisponibles();
-    }
-  }, [formData.appointmentDate, formData.sede, step]);
-
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     setLoading(true);
     try {
       const [sedesData, tiposData] = await Promise.all([
@@ -100,42 +89,58 @@ export default function AgendamientoCitasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadHorasDisponibles = async () => {
-  if (!formData.appointmentDate || !formData.sede) return;
-  
-  setLoadingHours(true);
-  try {
-    const selectedSede = sedes.find(s => s.nombre === formData.sede);
-    if (!selectedSede) {
+  const loadHorasDisponibles = useCallback(async () => {
+    if (!formData.appointmentDate || !formData.sede) return;
+    
+    setLoadingHours(true);
+    try {
+      const selectedSede = sedes.find(s => s.nombre === formData.sede);
+      if (!selectedSede) {
+        setHorasDisponibles([]);
+        return;
+      }
+
+      const horas = await apiService.getHorasDisponiblesPublicas(
+        formData.appointmentDate, 
+        selectedSede.id
+      );
+      
+      setHorasDisponibles(horas || []);
+      
+      // Clear selected time if it's no longer available
+      if (formData.appointmentTime && !horas.includes(formData.appointmentTime)) {
+        setFormData(prev => ({
+          ...prev,
+          appointmentTime: ''
+        }));
+      }
+    } catch {
+      setError('Error al cargar los horarios disponibles. Intente nuevamente.');
       setHorasDisponibles([]);
-      return;
+    } finally {
+      setLoadingHours(false);
     }
+  }, [formData.appointmentDate, formData.sede, formData.appointmentTime, sedes]);
 
-    const horas = await apiService.getHorasDisponiblesPublicas(
-      formData.appointmentDate, 
-      selectedSede.id
-    );
-    
-    setHorasDisponibles(horas || []);
-    
-    // Clear selected time if it's no longer available
-    if (formData.appointmentTime && !horas.includes(formData.appointmentTime)) {
-      setFormData(prev => ({
-        ...prev,
-        appointmentTime: ''
-      }));
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // Load available hours when date or sede changes with debounce
+  useEffect(() => {
+    if (formData.appointmentDate && formData.sede && step === 'form') {
+      const timeoutId = setTimeout(() => {
+        loadHorasDisponibles();
+      }, 100); // Pequeño debounce para evitar múltiples llamadas
+      
+      return () => clearTimeout(timeoutId);
     }
-  } catch {
-    setError('Error al cargar los horarios disponibles. Intente nuevamente.');
-    setHorasDisponibles([]);
-  } finally {
-    setLoadingHours(false);
-  }
-};
+  }, [formData.appointmentDate, formData.sede, step, loadHorasDisponibles]);
 
-  const buscarCliente = async () => {
+  const buscarCliente = useCallback(async () => {
     // Validar número de cliente antes de buscar
     const validation = ValidationUtils.validateIdentificationNumber(clientNumber);
     if (!validation.isValid) {
@@ -155,7 +160,7 @@ export default function AgendamientoCitasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clientNumber]);
 
   const generateQRCode = async (citaData: { numeroCita: string }) => {
     try {
@@ -188,7 +193,7 @@ export default function AgendamientoCitasPage() {
     return `${date} ${time}`;
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validar todos los campos requeridos
@@ -264,7 +269,7 @@ export default function AgendamientoCitasPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, clientData]);
 
   const handlePrint = () => {
     window.print();
@@ -406,7 +411,7 @@ export default function AgendamientoCitasPage() {
 
         {/* CLIENT STEP */}
         {step === 'client' && (
-          <div className="max-w-md mx-auto">
+          <div key="client-step" className="max-w-md mx-auto">
             <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
               <div className="text-center mb-8">
                 <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#97D4E3] to-[#56C2E1] rounded-2xl flex items-center justify-center shadow-lg mb-6">
@@ -420,6 +425,7 @@ export default function AgendamientoCitasPage() {
 
               <div className="space-y-6">
                 <ValidatedInput
+                  key="client-number-input"
                   label="Número de Cliente"
                   value={clientNumber}
                   onChange={(value) => setClientNumber(value)}
@@ -463,7 +469,7 @@ export default function AgendamientoCitasPage() {
 
         {/* FORM STEP */}
         {step === 'form' && clientData && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">
+          <div key="form-step" className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">{/* Clave añadida para estabilidad del DOM */}
             <div className="p-8">
               <div className="mb-8">
                 <button 
@@ -790,7 +796,7 @@ export default function AgendamientoCitasPage() {
 
         {/* CONFIRMATION STEP */}
         {step === 'confirmation' && appointmentData && (
-          <div className="max-w-2xl mx-auto">
+          <div key="confirmation-step" className="max-w-2xl mx-auto">{/* Clave añadida para estabilidad del DOM */}
             <div className="print:hidden">
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">
                 <div className="p-8">
