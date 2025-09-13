@@ -76,7 +76,7 @@ export default function Home() {
               Sistema de
               <span className="bg-gradient-to-r from-[#1797D5] to-[#56C2E1] bg-clip-text text-transparent"> Servicios</span>
             </h1>
-            <h2 className="text-2xl font-semibold text-[#1A6192] mb-6">Electrohuila</h2>
+            <h2 className="text-2xl font-semibold text-[#1A6192] mb-6">ElectroHuila</h2>
           </div>
 
  
