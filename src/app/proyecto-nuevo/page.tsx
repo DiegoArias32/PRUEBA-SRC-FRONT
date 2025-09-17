@@ -1,12 +1,31 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import QRCode from 'qrcode';
-import { apiService, SedeDto } from '../../services/api';
-import MobileMenu from '@/components/MobileMenu';
+import FixedHeader from '@/components/FixedHeader';
+import BackNavigation from '../../components/BackNavigation';
 
-interface SolicitudData {
+export default function ProyectoNuevoPage() {
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <FixedHeader />
+      <BackNavigation />
+      
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-yellow-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Página en Mantenimiento</h2>
+          <p className="text-gray-600 mb-6">
+            Estamos realizando mejoras en esta sección. Por favor, vuelve más tarde.
+          </p>
+          <p className="text-sm text-gray-500">
+            Disculpa las molestias. Estamos trabajando para brindarte un mejor servicio.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
   numeroSolicitud: string;
   fechaCreacion: string;
   personalData: {
