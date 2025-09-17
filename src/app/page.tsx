@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import FixedHeader from '@/components/FixedHeader';
 
 export default function Home() {
   const router = useRouter();
@@ -33,33 +34,12 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-x-hidden">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <img 
-              src="https://www.electrohuila.com.co/wp-content/uploads/2024/07/cropped-logo-nuevo-eh.png.webp"
-              alt="ElectroHuila Logo"
-              className="h-12 w-auto object-contain"
-              width="120"
-              height="29"
-            />
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Nuestra Empresa</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Usuarios</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Proveedores</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Contáctenos</a>
-          </nav>
-          <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-            📄 Paga tu Factura
-          </button>
-        </div>
-      </header>
+      <FixedHeader />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden pt-20">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-5">
           <div className="absolute top-20 left-10 w-72 h-72 bg-[#1797D5] rounded-full blur-3xl"></div>
@@ -76,7 +56,7 @@ export default function Home() {
               Sistema de
               <span className="bg-gradient-to-r from-[#1797D5] to-[#56C2E1] bg-clip-text text-transparent"> Servicios</span>
             </h1>
-            <h2 className="text-2xl font-semibold text-[#1A6192] mb-6">ElectroHuila</h2>
+            <h2 className="text-2xl font-semibold text-[#1A6192] mb-6">Electrohuila</h2>
           </div>
 
  

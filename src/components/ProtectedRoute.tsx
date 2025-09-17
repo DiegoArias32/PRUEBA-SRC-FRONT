@@ -79,6 +79,7 @@ export function useAuth() {
   const [user, setUser] = useState(AuthUtils.getCurrentUser());
   const [roles, setRoles] = useState(AuthUtils.getCurrentUserRoles());
   const [permissions, setPermissions] = useState(AuthUtils.getCurrentUserPermissions());
+  const [permissionsDetailed, setPermissionsDetailed] = useState(AuthUtils.getCurrentUserPermissionsDetailed());
   const [isAuthenticated, setIsAuthenticated] = useState(AuthUtils.isAuthenticated());
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export function useAuth() {
       setUser(AuthUtils.getCurrentUser());
       setRoles(AuthUtils.getCurrentUserRoles());
       setPermissions(AuthUtils.getCurrentUserPermissions());
+      setPermissionsDetailed(AuthUtils.getCurrentUserPermissionsDetailed());
       setIsAuthenticated(AuthUtils.isAuthenticated());
     };
 
@@ -99,6 +101,7 @@ export function useAuth() {
     setUser(null);
     setRoles([]);
     setPermissions([]);
+    setPermissionsDetailed({ forms: {}, modules: [] });
     setIsAuthenticated(false);
   };
 
@@ -106,6 +109,7 @@ export function useAuth() {
     user,
     roles,
     permissions,
+    permissionsDetailed,
     isAuthenticated,
     logout,
     hasRole: (role: string) => roles.includes(role),

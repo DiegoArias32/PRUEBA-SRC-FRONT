@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { apiService, SedeDto } from '../../services/api';
+import MobileMenu from '@/components/MobileMenu';
 
 interface SolicitudData {
   numeroSolicitud: string;
@@ -51,6 +52,14 @@ export default function ProyectoNuevoPage() {
   // Data from API
   const [sedes, setSedes] = useState<SedeDto[]>([]);
   const [horasDisponibles, setHorasDisponibles] = useState<string[]>([]);
+  
+  // Elementos del menú para el componente MobileMenu
+  const menuItems = [
+    { label: 'Nuestra Empresa', href: '#', icon: '🏢' },
+    { label: 'Usuarios', href: '#', icon: '👥' },
+    { label: 'Proveedores', href: '#', icon: '🏭' },
+    { label: 'Contáctenos', href: '#', icon: '📞' }
+  ];
   
   const [personalData, setPersonalData] = useState({
     tipoDocumento: 'Cédula de Ciudadanía',
@@ -354,28 +363,33 @@ export default function ProyectoNuevoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-green-50 overflow-x-hidden">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50 print:hidden">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-3">
+            <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200">
               <img 
                 src="https://www.electrohuila.com.co/wp-content/uploads/2024/07/cropped-logo-nuevo-eh.png.webp"
                 alt="ElectroHuila Logo"
-                className="h-12 w-auto object-contain"
+                className="h-10 md:h-12 w-auto object-contain cursor-pointer"
                 width="120"
                 height="29"
               />
             </Link>
           </div>
+          
+          {/* Menú Desktop */}
           <nav className="hidden md:flex space-x-8">
             <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Nuestra Empresa</a>
             <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Usuarios</a>
             <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Proveedores</a>
             <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Contáctenos</a>
           </nav>
-          <div className="flex items-center space-x-4">
+          
+          {/* Desktop Actions */}
+          <div className="hidden md:flex items-center space-x-4">
             <Link 
               href="/servicios"
               className="flex items-center space-x-2 text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300 hover:bg-gray-50 px-3 py-2 rounded-lg"
@@ -383,11 +397,33 @@ export default function ProyectoNuevoPage() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
               </svg>
-              <span className="hidden sm:inline">Volver a Servicios</span>
+              <span>Volver a Servicios</span>
             </Link>
             <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
               📄 Paga tu Factura
             </button>
+          </div>
+          
+          {/* Contenedor para móvil */}
+          <div className="flex md:hidden items-center space-x-3">
+            {/* Botón Volver - Móvil */}
+            <Link 
+              href="/servicios"
+              className="flex items-center space-x-1 text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300 hover:bg-gray-50 px-2 py-1 rounded-lg text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Servicios</span>
+            </Link>
+            
+            {/* Botón Paga tu Factura - Móvil */}
+            <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-md">
+              📄 Factura
+            </button>
+            
+            {/* Menú Hamburguesa */}
+            <MobileMenu menuItems={menuItems} />
           </div>
         </div>
       </header>

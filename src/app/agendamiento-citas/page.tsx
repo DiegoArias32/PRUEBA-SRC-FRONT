@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { apiService, ClienteDto, SedeDto, TipoCitaDto } from '../../services/api';
 import { ValidationUtils } from '../../utils/validation';
 import { ValidatedInput } from '../../components/ValidatedInput';
+import FixedHeader from '@/components/FixedHeader';
+import BackNavigation from '@/components/BackNavigation';
 
 interface AppointmentData {
   ticketNumber: string;
@@ -49,7 +51,18 @@ export default function AgendamientoCitasPage() {
   });
 
   // Load initial data
-  const loadInitialData = useCallback(async () => {
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Load available hours when date or sede changes
+  useEffect(() => {
+    if (formData.appointmentDate && formData.sede && step === 'form') {
+      loadHorasDisponibles();
+    }
+  }, [formData.appointmentDate, formData.sede, step]);
+
+  const loadInitialData = async () => {
     setLoading(true);
     try {
       const [sedesData, tiposData] = await Promise.all([
@@ -89,58 +102,42 @@ export default function AgendamientoCitasPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
-  const loadHorasDisponibles = useCallback(async () => {
-    if (!formData.appointmentDate || !formData.sede) return;
-    
-    setLoadingHours(true);
-    try {
-      const selectedSede = sedes.find(s => s.nombre === formData.sede);
-      if (!selectedSede) {
-        setHorasDisponibles([]);
-        return;
-      }
-
-      const horas = await apiService.getHorasDisponiblesPublicas(
-        formData.appointmentDate, 
-        selectedSede.id
-      );
-      
-      setHorasDisponibles(horas || []);
-      
-      // Clear selected time if it's no longer available
-      if (formData.appointmentTime && !horas.includes(formData.appointmentTime)) {
-        setFormData(prev => ({
-          ...prev,
-          appointmentTime: ''
-        }));
-      }
-    } catch {
-      setError('Error al cargar los horarios disponibles. Intente nuevamente.');
+  const loadHorasDisponibles = async () => {
+  if (!formData.appointmentDate || !formData.sede) return;
+  
+  setLoadingHours(true);
+  try {
+    const selectedSede = sedes.find(s => s.nombre === formData.sede);
+    if (!selectedSede) {
       setHorasDisponibles([]);
-    } finally {
-      setLoadingHours(false);
+      return;
     }
-  }, [formData.appointmentDate, formData.sede, formData.appointmentTime, sedes]);
 
-  // Load initial data
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
-
-  // Load available hours when date or sede changes with debounce
-  useEffect(() => {
-    if (formData.appointmentDate && formData.sede && step === 'form') {
-      const timeoutId = setTimeout(() => {
-        loadHorasDisponibles();
-      }, 100); // Pequeño debounce para evitar múltiples llamadas
-      
-      return () => clearTimeout(timeoutId);
+    const horas = await apiService.getHorasDisponiblesPublicas(
+      formData.appointmentDate, 
+      selectedSede.id
+    );
+    
+    setHorasDisponibles(horas || []);
+    
+    // Clear selected time if it's no longer available
+    if (formData.appointmentTime && !horas.includes(formData.appointmentTime)) {
+      setFormData(prev => ({
+        ...prev,
+        appointmentTime: ''
+      }));
     }
-  }, [formData.appointmentDate, formData.sede, step, loadHorasDisponibles]);
+  } catch {
+    setError('Error al cargar los horarios disponibles. Intente nuevamente.');
+    setHorasDisponibles([]);
+  } finally {
+    setLoadingHours(false);
+  }
+};
 
-  const buscarCliente = useCallback(async () => {
+  const buscarCliente = async () => {
     // Validar número de cliente antes de buscar
     const validation = ValidationUtils.validateIdentificationNumber(clientNumber);
     if (!validation.isValid) {
@@ -160,12 +157,12 @@ export default function AgendamientoCitasPage() {
     } finally {
       setLoading(false);
     }
-  }, [clientNumber]);
+  };
 
   const generateQRCode = async (citaData: { numeroCita: string }) => {
     try {
       // URL directa para verificación de la cita
-      const verificacionURL = `http://164.152.30.207:3000/verificar-cita?numero=${encodeURIComponent(citaData.numeroCita)}&cliente=${encodeURIComponent(clientData?.numeroCliente || '')}`;
+      const verificacionURL = `http://164.152.30.207:5000/verificar-cita?numero=${encodeURIComponent(citaData.numeroCita)}&cliente=${encodeURIComponent(clientData?.numeroCliente || '')}`;
       
       // Generar el código QR que apunta directamente a la URL de verificación
       const qrCodeDataURL = await QRCode.toDataURL(verificacionURL, {
@@ -193,7 +190,7 @@ export default function AgendamientoCitasPage() {
     return `${date} ${time}`;
   };
 
-  const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validar todos los campos requeridos
@@ -269,7 +266,7 @@ export default function AgendamientoCitasPage() {
     } finally {
       setLoading(false);
     }
-  }, [formData, clientData]);
+  };
 
   const handlePrint = () => {
     window.print();
@@ -340,47 +337,15 @@ export default function AgendamientoCitasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-x-hidden">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-3">
-              <img 
-                src="https://www.electrohuila.com.co/wp-content/uploads/2024/07/cropped-logo-nuevo-eh.png.webp"
-                alt="ElectroHuila Logo"
-                className="h-12 w-auto object-contain"
-                width="120"
-                height="29"
-              />
-            </Link>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Nuestra Empresa</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Usuarios</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Proveedores</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Contáctenos</a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/servicios"
-              className="flex items-center space-x-2 text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300 hover:bg-gray-50 px-3 py-2 rounded-lg"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">Volver a Servicios</span>
-            </Link>
-
-            <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              📄 Paga tu Factura
-            </button>
-          </div>
-        </div>
-      </header>
+      <FixedHeader />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-8 pt-24">
+        {/* Back Navigation */}
+        <BackNavigation backTo="/servicios" />
+        
         {/* Page Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">
@@ -411,7 +376,7 @@ export default function AgendamientoCitasPage() {
 
         {/* CLIENT STEP */}
         {step === 'client' && (
-          <div key="client-step" className="max-w-md mx-auto">
+          <div className="max-w-md mx-auto">
             <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
               <div className="text-center mb-8">
                 <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#97D4E3] to-[#56C2E1] rounded-2xl flex items-center justify-center shadow-lg mb-6">
@@ -425,7 +390,6 @@ export default function AgendamientoCitasPage() {
 
               <div className="space-y-6">
                 <ValidatedInput
-                  key="client-number-input"
                   label="Número de Cliente"
                   value={clientNumber}
                   onChange={(value) => setClientNumber(value)}
@@ -469,7 +433,7 @@ export default function AgendamientoCitasPage() {
 
         {/* FORM STEP */}
         {step === 'form' && clientData && (
-          <div key="form-step" className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">{/* Clave añadida para estabilidad del DOM */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">
             <div className="p-8">
               <div className="mb-8">
                 <button 
@@ -796,7 +760,7 @@ export default function AgendamientoCitasPage() {
 
         {/* CONFIRMATION STEP */}
         {step === 'confirmation' && appointmentData && (
-          <div key="confirmation-step" className="max-w-2xl mx-auto">{/* Clave añadida para estabilidad del DOM */}
+          <div className="max-w-2xl mx-auto">
             <div className="print:hidden">
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">
                 <div className="p-8">

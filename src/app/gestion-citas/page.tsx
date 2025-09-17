@@ -4,8 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { apiService, CitaDto } from '../../services/api';
-import { ValidationUtils } from '../../utils/validation';
+// ...existing code...
 import { ValidatedInput } from '../../components/ValidatedInput';
+import FixedHeader from '../../components/FixedHeader';
+import BackNavigation from '../../components/BackNavigation';
 
 // Definir tipos para mejor type safety
 interface Cliente {
@@ -27,6 +29,7 @@ export default function GestionCitas() {
   const [citas, setCitas] = useState<CitaDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [cliente, setCliente] = useState<Cliente | null>(null);
 
   // Validation states
@@ -41,6 +44,10 @@ export default function GestionCitas() {
     tecnicoAsignado: '',
     observacionesTecnico: ''
   });
+
+  // UI states
+  const [activeTab, setActiveTab] = useState<'pendientes' | 'completadas' | 'canceladas'>('pendientes');
+  const [expandedCard, setExpandedCard] = useState<number | null>(null);
 
   const validateField = (field: string, value: string): string => {
     switch (field) {
@@ -212,9 +219,19 @@ export default function GestionCitas() {
     try {
       await apiService.cancelarCitaPublica(cliente.numeroCliente, selectedCita.id, cancelReason);
       
+      // Esperar un momento para que el backend procese el cambio
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Refresh citas usando endpoint público
       const citasCliente = await apiService.getCitasClientePublico(cliente.numeroCliente);
       setCitas(citasCliente);
+      
+      // Cambiar automáticamente al tab de canceladas para mostrar la cita cancelada
+      setActiveTab('canceladas');
+      
+      // Mostrar mensaje de éxito
+      setSuccessMessage(`Cita ${selectedCita.numeroCita} cancelada exitosamente`);
+      setTimeout(() => setSuccessMessage(''), 5000); // Ocultar después de 5 segundos
       
       setModalType(null);
       setSelectedCita(null);
@@ -305,46 +322,144 @@ export default function GestionCitas() {
     clearValidationErrors();
   };
 
+  // Componente de Estadísticas
+  const StatsCard = ({ title, count, color, icon }: { title: string; count: number; color: string; icon: React.ReactNode }) => (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
+          <p className="text-3xl font-bold text-[#203461]">{count}</p>
+        </div>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Componente de Tarjeta de Cita Compacta
+  const CitaCard = ({ cita, isExpanded }: { cita: CitaDto; isExpanded: boolean }) => (
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
+      <div className="p-6">
+        {/* Header de la tarjeta */}
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1">
+            <h4 className="text-lg font-bold text-[#203461] mb-1">{cita.tipoCitaNombre}</h4>
+            <p className="text-sm text-gray-600">#{cita.numeroCita}</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoColor(cita.estado)}`}>
+              {getEstadoTexto(cita.estado)}
+            </span>
+            {cita.estado.toLowerCase() === 'pendiente' && (
+              <button
+                onClick={() => {
+                  setSelectedCita(cita);
+                  setModalType('cancel');
+                }}
+                className="text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Información básica siempre visible */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="flex items-center text-gray-700">
+            <svg className="w-4 h-4 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h.5a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2H8z" />
+            </svg>
+            <span className="text-sm font-medium">{formatDate(cita.fechaCita)}</span>
+          </div>
+          <div className="flex items-center text-gray-700">
+            <svg className="w-4 h-4 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm">{formatTime(cita.horaCita)}</span>
+          </div>
+        </div>
+
+        {/* Información expandible */}
+        {isExpanded && (
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            <div className="flex items-center text-gray-700">
+              <svg className="w-4 h-4 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-sm">{cita.sedeNombre}</span>
+            </div>
+            
+            {cita.tecnicoAsignado && (
+              <div className="flex items-center text-gray-700">
+                <svg className="w-4 h-4 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-sm">{cita.tecnicoAsignado}</span>
+              </div>
+            )}
+
+            {cita.observaciones && (
+              <div className={`rounded-xl p-3 ${
+                cita.estado.toLowerCase() === 'cancelada' ? 'bg-red-50' :
+                cita.estado.toLowerCase() === 'completada' ? 'bg-gray-50' : 'bg-blue-50'
+              }`}>
+                <p className={`text-sm ${
+                  cita.estado.toLowerCase() === 'cancelada' ? 'text-red-700' :
+                  cita.estado.toLowerCase() === 'completada' ? 'text-gray-700' : 'text-blue-700'
+                }`}>
+                  <span className="font-medium">
+                    {cita.estado.toLowerCase() === 'cancelada' ? 'Motivo de cancelación:' : 'Observaciones:'}
+                  </span> {cita.observaciones}
+                </p>
+              </div>
+            )}
+
+            {cita.observacionesTecnico && (
+              <div className="bg-green-50 rounded-xl p-3">
+                <p className="text-sm text-green-800">
+                  <span className="font-medium">Observaciones del técnico:</span> {cita.observacionesTecnico}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Botón de expandir/colapsar */}
+        <button
+          onClick={() => setExpandedCard(isExpanded ? null : cita.id)}
+          className="w-full mt-4 py-2 text-sm text-[#1797D5] hover:text-[#203461] font-medium flex items-center justify-center transition-colors"
+        >
+          {isExpanded ? (
+            <>
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+              </svg>
+              Ver menos
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+              Ver detalles
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-3">
-              <Image 
-                src="https://www.electrohuila.com.co/wp-content/uploads/2024/07/cropped-logo-nuevo-eh.png.webp"
-                alt="ElectroHuila Logo"
-                className="h-12 w-auto object-contain"
-                width={120}
-                height={29}
-              />
-            </Link>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Nuestra Empresa</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Usuarios</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Proveedores</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Contáctenos</a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/"
-              className="flex items-center space-x-2 text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300 hover:bg-gray-50 px-3 py-2 rounded-lg"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">Volver al Inicio</span>
-            </Link>
-            <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              📄 Paga tu Factura
-            </button>
-          </div>
-        </div>
-      </header>
+      <FixedHeader />
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8 pt-24">{/* pt-24 para compensar el header fixed */}
+        <BackNavigation backTo="/servicios" />
+        
         {/* Page Description */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">
@@ -365,9 +480,21 @@ export default function GestionCitas() {
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
             <div className="flex items-center">
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.4JUdGzvrMFDWrUUwY3toJATSeNwjn54LkCnKBPRzDuhzi5vSepHfUckJNxRL2gjkNrSqtCoRUrEDAgRwsQvVCjZbRyFTLRNyDmT1a1boZV293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
               {error}
+            </div>
+          </div>
+        )}
+
+        {/* Success Alert */}
+        {successMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+            <div className="flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              {successMessage}
             </div>
           </div>
         )}
@@ -387,42 +514,26 @@ export default function GestionCitas() {
               </div>
 
               <div className="space-y-6">
-                <div>
-                  <label htmlFor="codigo" className="block text-sm font-semibold text-[#203461] mb-2">
-                    Número de Cliente
-                  </label>
-                  <input
-                    type="text"
-                    id="codigo"
-                    value={codigoUsuario}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, ''); // Solo números
-                      setCodigoUsuario(value);
-                      handleFieldChange('codigoUsuario', value);
-                    }}
-                    onBlur={() => {
-                      setTouchedFields(prev => ({ ...prev, codigoUsuario: true }));
-                      const error = validateField('codigoUsuario', codigoUsuario);
-                      setValidationErrors(prev => ({ ...prev, codigoUsuario: error }));
-                    }}
-                    placeholder="Ej: 12345"
-                    maxLength={15}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all duration-300 ${
-                      validationErrors.codigoUsuario && touchedFields.codigoUsuario
-                        ? 'border-red-500 focus:ring-red-500'
-                        : 'border-gray-300 focus:ring-[#56C2E1]'
-                    }`}
-                    onKeyPress={(e) => e.key === 'Enter' && buscarCitas()}
-                  />
-                  {validationErrors.codigoUsuario && touchedFields.codigoUsuario && (
-                    <div className="text-red-600 text-sm mt-1 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {validationErrors.codigoUsuario}
-                    </div>
-                  )}
-                </div>
+                <ValidatedInput
+                  label="Número de Cliente"
+                  value={codigoUsuario}
+                  onChange={(value) => {
+                    const onlyNumbers = value.replace(/\D/g, '');
+                    setCodigoUsuario(onlyNumbers);
+                    handleFieldChange('codigoUsuario', onlyNumbers);
+                  }}
+                  onBlur={() => {
+                    setTouchedFields(prev => ({ ...prev, codigoUsuario: true }));
+                    const error = validateField('codigoUsuario', codigoUsuario);
+                    setValidationErrors(prev => ({ ...prev, codigoUsuario: error }));
+                  }}
+                  error={touchedFields.codigoUsuario ? validationErrors.codigoUsuario : ''}
+                  type="text"
+                  placeholder="Ej: 12345"
+                  required
+                  maxLength={15}
+                  inputClassName="px-4 py-3 rounded-xl focus:ring-2 focus:border-transparent outline-none transition-all duration-300"
+                />
 
                 <button
                   onClick={buscarCitas}
@@ -446,7 +557,7 @@ export default function GestionCitas() {
             </div>
           </div>
         ) : (
-          /* Citas Display */
+          /* Dashboard y Citas Display */
           <div className="space-y-8">
             {/* User Info */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
@@ -456,20 +567,6 @@ export default function GestionCitas() {
                     Cliente: {cliente?.nombreCompleto} ({cliente?.numeroCliente})
                   </h2>
                   <p className="text-gray-600">Total de citas encontradas: {citas.length}</p>
-                  <div className="flex items-center space-x-6 mt-2 text-sm">
-                    <span className="flex items-center text-yellow-600">
-                      <span className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
-                      Pendientes: {citasPendientes.length}
-                    </span>
-                    <span className="flex items-center text-green-600">
-                      <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                      Completadas: {citasCompletadas.length}
-                    </span>
-                    <span className="flex items-center text-red-600">
-                      <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
-                      Canceladas: {citasCanceladas.length}
-                    </span>
-                  </div>
                 </div>
                 <button
                   onClick={resetForm}
@@ -483,204 +580,175 @@ export default function GestionCitas() {
               </div>
             </div>
 
-            {/* Citas Pendientes */}
-            {citasPendientes.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-[#203461] mb-6 flex items-center">
-                  <span className="w-3 h-3 bg-yellow-400 rounded-full mr-3"></span>
-                  Citas Pendientes ({citasPendientes.length})
-                </h3>
-                <div className="grid gap-6">
-                  {citasPendientes.map((cita) => (
-                    <div key={cita.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="text-lg font-bold text-[#203461] mb-1">{cita.tipoCitaNombre}</h4>
-                          <p className="text-gray-600 text-sm">Número: {cita.numeroCita}</p>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoColor(cita.estado)}`}>
-                            {getEstadoTexto(cita.estado)}
-                          </span>
-                          {cita.estado.toLowerCase() === 'pendiente' && (
-                            <button
-                              onClick={() => {
-                                setSelectedCita(cita);
-                                setModalType('cancel');
-                              }}
-                              className="text-red-600 hover:text-red-800 text-sm font-medium"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="grid md:grid-cols-3 gap-4 mb-4">
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h.5a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2H8z" />
-                          </svg>
-                          <span className="font-medium">{formatDate(cita.fechaCita)}</span>
-                        </div>
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{formatTime(cita.horaCita)}</span>
-                        </div>
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span>{cita.sedeNombre}</span>
-                        </div>
-                      </div>
+            {/* Dashboard de Estadísticas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatsCard
+                title="Citas Pendientes"
+                count={citasPendientes.length}
+                color="bg-yellow-100"
+                icon={
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+              <StatsCard
+                title="Citas Completadas"
+                count={citasCompletadas.length}
+                color="bg-green-100"
+                icon={
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+              <StatsCard
+                title="Citas Canceladas"
+                count={citasCanceladas.length}
+                color="bg-red-100"
+                icon={
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+            </div>
 
-                      {cita.observaciones && (
-                        <div className="bg-gray-50 rounded-xl p-4">
-                          <p className="text-sm text-gray-700">
-                            <span className="font-medium">Observaciones:</span> {cita.observaciones}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+            {/* Sistema de Pestañas */}
+            {citas.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                {/* Tab Headers */}
+                <div className="border-b border-gray-200">
+                  <nav className="flex">
+                    <button
+                      onClick={() => setActiveTab('pendientes')}
+                      className={`flex-1 py-4 px-6 text-sm font-medium text-center border-b-2 transition-colors ${
+                        activeTab === 'pendientes'
+                          ? 'border-yellow-500 text-yellow-600 bg-yellow-50'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                        <span>Pendientes ({citasPendientes.length})</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('completadas')}
+                      className={`flex-1 py-4 px-6 text-sm font-medium text-center border-b-2 transition-colors ${
+                        activeTab === 'completadas'
+                          ? 'border-green-500 text-green-600 bg-green-50'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                        <span>Completadas ({citasCompletadas.length})</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('canceladas')}
+                      className={`flex-1 py-4 px-6 text-sm font-medium text-center border-b-2 transition-colors ${
+                        activeTab === 'canceladas'
+                          ? 'border-red-500 text-red-600 bg-red-50'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                        <span>Canceladas ({citasCanceladas.length})</span>
+                      </div>
+                    </button>
+                  </nav>
                 </div>
-              </div>
-            )}
 
-            {/* Citas Completadas */}
-            {citasCompletadas.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-[#203461] mb-6 flex items-center">
-                  <span className="w-3 h-3 bg-green-400 rounded-full mr-3"></span>
-                  Historial de Citas Completadas ({citasCompletadas.length})
-                </h3>
-                <div className="grid gap-6">
-                  {citasCompletadas.map((cita) => (
-                    <div key={cita.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="text-lg font-bold text-[#203461] mb-1">{cita.tipoCitaNombre}</h4>
-                          <p className="text-gray-600 text-sm">Número: {cita.numeroCita}</p>
+                {/* Tab Content */}
+                <div className="p-6">
+                  {/* Citas Pendientes */}
+                  {activeTab === 'pendientes' && (
+                    <div>
+                      {citasPendientes.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          {citasPendientes.map((cita) => (
+                            <CitaCard
+                              key={cita.id}
+                              cita={cita}
+                              isExpanded={expandedCard === cita.id}
+                            />
+                          ))}
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoColor(cita.estado)}`}>
-                          {getEstadoTexto(cita.estado)}
-                        </span>
-                      </div>
-                      
-                      <div className="grid md:grid-cols-4 gap-4 mb-4">
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h.5a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2H8z" />
-                          </svg>
-                          <span className="font-medium">{formatDate(cita.fechaCita)}</span>
-                        </div>
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{formatTime(cita.horaCita)}</span>
-                        </div>
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span>{cita.sedeNombre}</span>
-                        </div>
-                        {cita.tecnicoAsignado && (
-                          <div className="flex items-center text-gray-700">
-                            <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      ) : (
+                        <div className="text-center py-8">
+                          <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span>{cita.tecnicoAsignado}</span>
                           </div>
-                        )}
-                      </div>
-
-                      {(cita.observaciones || cita.observacionesTecnico) && (
-                        <div className="space-y-3">
-                          {cita.observaciones && (
-                            <div className="bg-gray-50 rounded-xl p-4">
-                              <p className="text-sm text-gray-700">
-                                <span className="font-medium">Observaciones:</span> {cita.observaciones}
-                              </p>
-                            </div>
-                          )}
-                          {cita.observacionesTecnico && (
-                            <div className="bg-green-50 rounded-xl p-4">
-                              <p className="text-sm text-green-800">
-                                <span className="font-medium">Observaciones del técnico:</span> {cita.observacionesTecnico}
-                              </p>
-                            </div>
-                          )}
+                          <h3 className="text-lg font-medium text-gray-600 mb-2">No hay citas pendientes</h3>
+                          <p className="text-gray-500">Todas tus citas están completadas o canceladas.</p>
                         </div>
                       )}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Citas Completadas */}
+                  {activeTab === 'completadas' && (
+                    <div>
+                      {citasCompletadas.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          {citasCompletadas.map((cita) => (
+                            <CitaCard
+                              key={cita.id}
+                              cita={cita}
+                              isExpanded={expandedCard === cita.id}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-lg font-medium text-gray-600 mb-2">No hay citas completadas</h3>
+                          <p className="text-gray-500">Aún no se han completado citas.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Citas Canceladas */}
+                  {activeTab === 'canceladas' && (
+                    <div>
+                      {citasCanceladas.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                          {citasCanceladas.map((cita) => (
+                            <CitaCard
+                              key={cita.id}
+                              cita={cita}
+                              isExpanded={expandedCard === cita.id}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-lg font-medium text-gray-600 mb-2">No hay citas canceladas</h3>
+                          <p className="text-gray-500">No se han cancelado citas.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Citas Canceladas */}
-            {citasCanceladas.length > 0 && (
-              <div>
-                <h3 className="text-2xl font-bold text-[#203461] mb-6 flex items-center">
-                  <span className="w-3 h-3 bg-red-400 rounded-full mr-3"></span>
-                  Citas Canceladas ({citasCanceladas.length})
-                </h3>
-                <div className="grid gap-6">
-                  {citasCanceladas.map((cita) => (
-                    <div key={cita.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300 opacity-75">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h4 className="text-lg font-bold text-[#203461] mb-1">{cita.tipoCitaNombre}</h4>
-                          <p className="text-gray-600 text-sm">Número: {cita.numeroCita}</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getEstadoColor(cita.estado)}`}>
-                          {getEstadoTexto(cita.estado)}
-                        </span>
-                      </div>
-                      
-                      <div className="grid md:grid-cols-3 gap-4 mb-4">
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h.5a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2H8z" />
-                          </svg>
-                          <span className="font-medium">{formatDate(cita.fechaCita)}</span>
-                        </div>
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{formatTime(cita.horaCita)}</span>
-                        </div>
-                        <div className="flex items-center text-gray-700">
-                          <svg className="w-5 h-5 text-[#56C2E1] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                          <span>{cita.sedeNombre}</span>
-                        </div>
-                      </div>
-
-                      {cita.observaciones && (
-                        <div className="bg-red-50 rounded-xl p-4">
-                          <p className="text-sm text-red-700">
-                            <span className="font-medium">Motivo de cancelación:</span> {cita.observaciones}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* No hay citas */}
+            {/* No hay citas en absoluto */}
             {citas.length === 0 && (
               <div className="text-center py-12">
                 <div className="w-20 h-20 mx-auto bg-gray-100 rounded-2xl flex items-center justify-center mb-6">
@@ -905,19 +973,19 @@ export default function GestionCitas() {
           
           <div className="grid md:grid-cols-4 gap-6 text-sm">
             <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="font-semibold mb-2">📞 Atención al Cliente</div>
+              <div className="font-semibold mb-2">?? Atención al Cliente</div>
               <div className="text-white/90">(608) 8664600</div>
             </div>
             <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="font-semibold mb-2">📞 Mesa de Ayuda</div>
+              <div className="font-semibold mb-2">?? Mesa de Ayuda</div>
               <div className="text-white/90">(608) 8664646</div>
             </div>
             <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="font-semibold mb-2">📞 Línea Gratuita</div>
+              <div className="font-semibold mb-2">?? Línea Gratuita</div>
               <div className="text-white/90">018000952115</div>
             </div>
             <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="font-semibold mb-2">🔍 Transparencia</div>
+              <div className="font-semibold mb-2">?? Transparencia</div>
               <div className="text-white/90">Línea PQR</div>
             </div>
           </div>

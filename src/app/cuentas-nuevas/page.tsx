@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
-import { apiService, SedeDto, TipoCitaDto } from '../../services/api';
+import { apiService, SedeDto } from '../../services/api';
 import { ValidationUtils } from '../../utils/validation';
-import { ValidatedInput, ValidatedSelect, ValidatedTextarea } from '../../components/ValidatedInput';
+import { ValidatedInput, ValidatedSelect } from '../../components/ValidatedInput';
+import FixedHeader from '@/components/FixedHeader';
+import BackNavigation from '../../components/BackNavigation';
 
 interface SolicitudData {
   numeroSolicitud: string;
@@ -45,15 +47,6 @@ interface SolicitudData {
 
 // Opciones dinámicas que se pueden configurar
 const TIPOS_DOCUMENTO = ['Cédula de Ciudadanía', 'Cédula de Extranjería', 'NIT', 'Pasaporte'];
-const TIPOS_INMUEBLE = ['Casa', 'Apartamento', 'Local Comercial', 'Bodega Industrial', 'Oficina'];
-const USOS_SERVICIO = ['Residencial', 'Comercial', 'Industrial', 'Oficial'];
-const MUNICIPIOS = ['Neiva', 'Garzón', 'La Plata', 'Pitalito', 'Gigante', 'Guadalupe', 'Campoalegre', 'Rivera'];
-const ESTRATOS = [1, 2, 3, 4, 5, 6];
-const TIPOS_INSTALACION = ['Monofásica (1Φ)', 'Bifásica (2Φ)', 'Trifásica (3Φ)'];
-const CARGAS_REQUERIDAS = ['5 kW', '10 kW', '15 kW', '20 kW', '25 kW', '30 kW', 'Más de 30 kW'];
-const TIPOS_CONEXION = ['Aérea', 'Subterránea'];
-const OPCIONES_TRANSFORMADOR = ['No', 'Sí', 'No sé'];
-const DISTANCIAS_RED = ['Menos de 50m', '50m - 100m', '100m - 200m', 'Más de 200m', 'No hay red cercana'];
 
 export default function CuentasNuevasPage() {
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
@@ -90,14 +83,6 @@ export default function CuentasNuevasPage() {
     usoServicio: 'Residencial'
   });
 
-  const [technicalData, setTechnicalData] = useState({
-    tipoInstalacion: 'Monofásica (1Φ)',
-    cargaRequerida: '5 kW',
-    tipoConexion: 'Aérea',
-    tieneTransformador: 'No',
-    distanciaRed: 'Menos de 50m'
-  });
-
   const [observations, setObservations] = useState('');
 
   const [appointmentData, setAppointmentData] = useState({
@@ -112,12 +97,39 @@ export default function CuentasNuevasPage() {
     loadInitialData();
   }, []);
 
+  const loadHorasDisponibles = useCallback(async () => {
+    if (!appointmentData.appointmentDate || !appointmentData.sedeId) return;
+    
+    setLoadingHours(true);
+    try {
+      const horas = await apiService.getHorasDisponiblesPublicas(
+        appointmentData.appointmentDate, 
+        appointmentData.sedeId
+      );
+      
+      setHorasDisponibles(horas || []);
+      
+      // Clear selected time if it's no longer available
+      if (appointmentData.appointmentTime && !horas.includes(appointmentData.appointmentTime)) {
+        setAppointmentData(prev => ({
+          ...prev,
+          appointmentTime: ''
+        }));
+      }
+    } catch {
+      setError('Error al cargar los horarios disponibles. Intente nuevamente.');
+      setHorasDisponibles([]);
+    } finally {
+      setLoadingHours(false);
+    }
+  }, [appointmentData.appointmentDate, appointmentData.sedeId, appointmentData.appointmentTime]);
+
   // Load available hours when date or sede changes
   useEffect(() => {
     if (appointmentData.appointmentDate && appointmentData.sedeId && step === 'form') {
       loadHorasDisponibles();
     }
-  }, [appointmentData.appointmentDate, appointmentData.sedeId, step]);
+  }, [appointmentData.appointmentDate, appointmentData.sedeId, step, loadHorasDisponibles]);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -147,33 +159,6 @@ export default function CuentasNuevasPage() {
       setError('Error al cargar los datos iniciales: ' + (err instanceof Error ? err.message : 'Error desconocido'));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadHorasDisponibles = async () => {
-    if (!appointmentData.appointmentDate || !appointmentData.sedeId) return;
-    
-    setLoadingHours(true);
-    try {
-      const horas = await apiService.getHorasDisponiblesPublicas(
-        appointmentData.appointmentDate, 
-        appointmentData.sedeId
-      );
-      
-      setHorasDisponibles(horas || []);
-      
-      // Clear selected time if it's no longer available
-      if (appointmentData.appointmentTime && !horas.includes(appointmentData.appointmentTime)) {
-        setAppointmentData(prev => ({
-          ...prev,
-          appointmentTime: ''
-        }));
-      }
-    } catch {
-      setError('Error al cargar los horarios disponibles. Intente nuevamente.');
-      setHorasDisponibles([]);
-    } finally {
-      setLoadingHours(false);
     }
   };
 
@@ -302,11 +287,11 @@ export default function CuentasNuevasPage() {
         metrosCuadrados: parseFloat(propertyData.metrosCuadrados) || 0,
         numeroApartamento: propertyData.numeroApartamento,
         usoServicio: propertyData.usoServicio,
-        tipoInstalacion: technicalData.tipoInstalacion,
-        cargaRequerida: technicalData.cargaRequerida,
-        tipoConexion: technicalData.tipoConexion,
-        tieneTransformador: technicalData.tieneTransformador,
-        distanciaRed: technicalData.distanciaRed,
+        tipoInstalacion: 'Monofásica (1Φ)', // Valor por defecto para formulario simplificado
+        cargaRequerida: '5 kW', // Valor por defecto
+        tipoConexion: 'Aérea', // Valor por defecto
+        tieneTransformador: 'No', // Valor por defecto
+        distanciaRed: 'Menos de 50m', // Valor por defecto
         sedeId: appointmentData.sedeId,
         fechaCita: appointmentData.appointmentDate,
         horaCita: appointmentData.appointmentTime,
@@ -327,7 +312,13 @@ export default function CuentasNuevasPage() {
           estrato: propertyData.estrato.toString(),
           metrosCuadrados: propertyData.metrosCuadrados
         },
-        technicalData,
+        technicalData: {
+          tipoInstalacion: 'Monofásica (1Φ)',
+          cargaRequerida: '5 kW',
+          tipoConexion: 'Aérea',
+          tieneTransformador: 'No',
+          distanciaRed: 'Menos de 50m'
+        },
         appointmentData,
         observations
       };
@@ -435,46 +426,17 @@ export default function CuentasNuevasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-x-hidden">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50 print:hidden">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-3">
-              <img 
-                src="https://www.electrohuila.com.co/wp-content/uploads/2024/07/cropped-logo-nuevo-eh.png.webp"
-                alt="ElectroHuila Logo"
-                className="h-12 w-auto object-contain"
-                width="120"
-                height="29"
-              />
-            </Link>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Nuestra Empresa</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Usuarios</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Proveedores</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Contáctenos</a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/servicios"
-              className="flex items-center space-x-2 text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300 hover:bg-gray-50 px-3 py-2 rounded-lg"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">Volver a Servicios</span>
-            </Link>
-            <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              📄 Paga tu Factura
-            </button>
-          </div>
-        </div>
-      </header>
+      <FixedHeader />
+
+      {/* Back Navigation */}
+      <div className="max-w-6xl mx-auto px-4 pt-24">
+        <BackNavigation backTo="/servicios" />
+      </div>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 py-8 print:hidden">
+      <main className="max-w-6xl mx-auto px-4 py-8 print:hidden">
         {/* Page Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">

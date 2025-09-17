@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/components/ProtectedRoute';
 
 export default function UnauthorizedPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, permissionsDetailed } = useAuth();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center px-4">
@@ -33,7 +33,7 @@ export default function UnauthorizedPage() {
               Contacta al administrador si crees que esto es un error.
             </p>
 
-            {/* User Info */}
+            {/* User Info y Permisos */}
             {user && (
               <div className="bg-gray-50 rounded-lg p-4 mb-6 text-sm">
                 <p className="text-gray-700">
@@ -42,6 +42,23 @@ export default function UnauthorizedPage() {
                 <p className="text-gray-700">
                   <strong>Email:</strong> {user.email}
                 </p>
+                {/* Permisos por formulario/tab */}
+                {permissionsDetailed && permissionsDetailed.forms && (
+                  <div className="mt-4">
+                    <p className="font-semibold text-gray-600 mb-2">Permisos asignados:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(permissionsDetailed.forms).map(([formCode, perms]) => (
+                        <div key={formCode} className="bg-gray-100 rounded-lg px-3 py-1 text-xs text-gray-700 border border-gray-200">
+                          <span className="font-semibold text-[#1797D5]">{formCode}:</span>
+                          {perms.canRead && <span className="ml-1">👁️ Leer</span>}
+                          {perms.canCreate && <span className="ml-1">➕ Crear</span>}
+                          {perms.canUpdate && <span className="ml-1">✏️ Editar</span>}
+                          {perms.canDelete && <span className="ml-1">🗑️ Eliminar</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

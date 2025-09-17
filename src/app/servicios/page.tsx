@@ -1,7 +1,9 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import FixedHeader from '@/components/FixedHeader';
+import BackNavigation from '@/components/BackNavigation';
 
 interface Service {
   id: string;
@@ -13,6 +15,7 @@ interface Service {
 export default function ServiciosPage() {
   const [selectedService, setSelectedService] = useState<string>('');
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const services: Service[] = [
     {
@@ -46,49 +49,42 @@ export default function ServiciosPage() {
     setIsOpen(false);
   };
 
+  // Cerrar dropdown cuando se hace clic fuera de él o se presiona Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscapeKey);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, []);
+
   const selectedServiceData: Service | undefined = services.find(s => s.name === selectedService);
 
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 overflow-x-hidden">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-3">
-              <img 
-                src="https://www.electrohuila.com.co/wp-content/uploads/2024/07/cropped-logo-nuevo-eh.png.webp"
-                alt="ElectroHuila Logo"
-                className="h-12 w-auto object-contain"
-                width="120"
-                height="29"
-              />
-            </Link>
-          </div>
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Nuestra Empresa</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Usuarios</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Proveedores</a>
-            <a href="#" className="text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300">Contáctenos</a>
-          </nav>
-          <div className="flex items-center space-x-4">
-            <Link 
-              href="/"
-              className="flex items-center space-x-2 text-[#1A6192] hover:text-[#203461] font-medium transition-colors duration-300 hover:bg-gray-50 px-3 py-2 rounded-lg"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-              </svg>
-              <span className="hidden sm:inline">Volver al Inicio</span>
-            </Link>
-            <button className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
-              📄 Paga tu Factura
-            </button>
-          </div>
-        </div>
-      </header>
+      <FixedHeader />
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className="max-w-4xl mx-auto px-4 py-12 pt-24">
+        {/* Back Navigation */}
+        <BackNavigation backTo="/" />
+        
         {/* Page Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">
@@ -123,7 +119,7 @@ export default function ServiciosPage() {
           </div>
 
           {/* Dropdown */}
-          <div className="relative mb-6">
+          <div className="relative mb-6" ref={dropdownRef}>
             <label className="block text-sm font-semibold text-[#203461] mb-2">
               Tipo de Servicio <span className="text-red-500">*</span>
             </label>
@@ -189,25 +185,25 @@ export default function ServiciosPage() {
         </div>
 
         {/* Services Info Grid */}
-  <div className="grid md:grid-cols-4 gap-6">
-          {services.map((service, index) => (
+        <div className="grid md:grid-cols-4 gap-6">
+          {services.map((service) => (
             <Link
               key={service.id}
               href={service.href}
-              className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl hover:border-[#56C2E1] transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+              className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl hover:border-[#56C2E1] transform hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col h-full"
             >
-              <div className="text-center">
+              <div className="text-center flex-1 flex flex-col">
                 <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#97D4E3] to-[#56C2E1] rounded-2xl flex items-center justify-center shadow-lg mb-4 group-hover:scale-110 transition-transform duration-300">
                   <span className="text-2xl">{service.icon}</span>
                 </div>
                 <h3 className="text-lg font-bold text-[#203461] mb-2 group-hover:text-[#1797D5] transition-colors duration-300">{service.name}</h3>
-                <p className="text-gray-600 text-sm mb-4">
+                <p className="text-gray-600 text-sm mb-4 flex-1">
                   {service.id === 'cuentas-nuevas' && 'Solicite nuevas conexiones eléctricas para su hogar o negocio'}
                   {service.id === 'proyecto-nuevo' && 'Para proyectos de construcción, urbanizaciones o desarrollos inmobiliarios'}
                   {service.id === 'agendamiento-citas' && 'Programe citas para reclamos, reportes de daños y otros servicios'}
                   {service.id === 'gestion-citas' && 'Verifique el estado y detalles de sus citas existentes'}
                 </p>
-                <div className="flex items-center justify-center text-[#1797D5] group-hover:text-[#56C2E1] transition-colors duration-300">
+                <div className="flex items-center justify-center text-[#1797D5] group-hover:text-[#56C2E1] transition-colors duration-300 mt-auto">
                   <span className="text-sm font-medium">Ir al servicio</span>
                   <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />

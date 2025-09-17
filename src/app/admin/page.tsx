@@ -289,13 +289,13 @@ export default function AdminPage() {
    */
   const getFormCodeForTab = (tab: TabType): string | null => {
     switch (tab) {
-      case 'citas': return 'FORM_CITAS';
-      case 'empleados': return 'FORM_EMPLEADOS';
-      case 'roles': return 'FORM_ROLES';
-      case 'sedes': return 'FORM_SEDES';
-      case 'tipos-cita': return 'FORM_TIPOS_CITA';
-      case 'horas-disponibles': return 'FORM_HORAS';
-      case 'permisos': return 'FORM_PERMISOS';
+      case 'citas': return 'CITAS';
+      case 'empleados': return 'USERS';
+      case 'roles': return 'ROLES';
+      case 'sedes': return 'SEDES';
+      case 'tipos-cita': return 'TIPOS_CITA';
+      case 'horas-disponibles': return 'HORAS_DISPONIBLES';
+      case 'permisos': return 'PERMISSIONS';
       default: return null;
     }
   };
@@ -1456,28 +1456,10 @@ const handleUpdateHoraDisponible = async () => {
   // Si no hay tabs disponibles, mostrar mensaje de acceso denegado
   const availableTabs = getAvailableTabs();
   if (hasInitialPermissions && availableTabs.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
-          <div className="w-16 h-16 mx-auto bg-red-100 rounded-2xl flex items-center justify-center mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-red-600 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600 mb-6">
-            No tiene permisos para acceder al panel de administración.
-            <br />Contacte al administrador del sistema.
-          </p>
-          <button
-            onClick={() => window.location.replace('/login')}
-            className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-300"
-          >
-            Volver al Login
-          </button>
-        </div>
-      </div>
-    );
+    if (typeof window !== 'undefined') {
+      window.location.replace('/unauthorized');
+    }
+    return null;
   }
 
   return (
@@ -1496,13 +1478,16 @@ const handleUpdateHoraDisponible = async () => {
               />
             </Link>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600 hidden md:inline">
+          <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
+            <span className="text-sm text-gray-600">
               Bienvenido, {currentUser?.username || 'Usuario'}
             </span>
-            <span className="text-xs text-gray-500 hidden lg:inline">
+            <span className="text-xs text-gray-500">
               ({userRoles?.join(', ') || 'Sin rol'})
             </span>
+            {currentUser?.email && (
+              <span className="text-xs text-gray-400">Email: {currentUser.email}</span>
+            )}
             <button
               onClick={async () => {
                 setIsLoggingOut(true);
