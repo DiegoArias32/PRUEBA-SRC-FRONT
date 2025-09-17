@@ -1,0 +1,42 @@
+@media print {
+  /* Oculta elementos de navegación, headers, footers, botones, etc. */
+  header, nav, .no-print, .print-hide, button, .btn, .back-btn, .volver-btn {
+    display: none !important;
+  }
+
+  /* Márgenes mínimos para aprovechar el espacio */
+  @page {
+    margin: 0.5cm;
+    size: A4 portrait;
+  }
+
+  /* Forzar todo el contenido principal a una sola hoja */
+  .print-main, .print-card, .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-before: auto !important;
+    page-break-after: auto !important;
+    max-height: 99vh !important;
+    overflow: visible !important;
+  }
+
+  /* Reducir tamaño de fuente y compactar */
+  body, .print-main {
+    font-size: 10pt !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    line-height: 1.1 !important;
+  }
+
+  /* Eliminar paginación, url y fecha automática del navegador */
+  @page {
+    margin-bottom: 0cm;
+  }
+
+  /* Eliminar sombras y márgenes extra de tarjetas */
+  .print-card {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

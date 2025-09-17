@@ -462,10 +462,6 @@ export default function GestionCitas() {
         
         {/* Page Description */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">
-            <span className="w-2 h-2 bg-[#56C2E1] rounded-full mr-2 animate-pulse"></span>
-            Sistema de Consulta
-          </div>
           <h1 className="text-5xl font-bold text-[#203461] mb-4">
             Gestión de
             <span className="bg-gradient-to-r from-[#1797D5] to-[#56C2E1] bg-clip-text text-transparent"> Citas</span>
@@ -991,7 +987,7 @@ export default function GestionCitas() {
           </div>
           
           <div className="mt-8 pt-8 border-t border-white/20 text-center text-white/70 text-sm">
-            © 2025 ElectroHuila S.A. E.S.P. - Todos los derechos reservados
+            © <span className="note-year">{new Date().getFullYear()}</span> ElectroHuila S.A. E.S.P. - Todos los derechos reservados
           </div>
         </div>
       </footer>

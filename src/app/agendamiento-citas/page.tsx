@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import './print.css';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { apiService, ClienteDto, SedeDto, TipoCitaDto } from '../../services/api';
 import { ValidationUtils } from '../../utils/validation';
-import { ValidatedInput } from '../../components/ValidatedInput';
 import FixedHeader from '@/components/FixedHeader';
 import BackNavigation from '@/components/BackNavigation';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faExclamationCircle, faUser, faCheckCircle, faCalendarAlt, faArrowLeft, faSyncAlt, faPrint, faPlus, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 
 interface AppointmentData {
   ticketNumber: string;
@@ -25,6 +27,15 @@ interface AppointmentData {
 
 export default function AgendamientoCitasPage() {
   const [step, setStep] = useState<'client' | 'form' | 'confirmation'>('client');
+  // Estado para mostrar advertencia de "10 minutos antes"
+  const [showFormWarning, setShowFormWarning] = useState(true);
+  useEffect(() => {
+    if (step === 'form') {
+      setShowFormWarning(true);
+      const timer = setTimeout(() => setShowFormWarning(false), 11000);
+      return () => clearTimeout(timer);
+    }
+  }, [step]);
   const [clientNumber, setClientNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingHours, setLoadingHours] = useState(false);
@@ -106,7 +117,6 @@ export default function AgendamientoCitasPage() {
 
   const loadHorasDisponibles = async () => {
   if (!formData.appointmentDate || !formData.sede) return;
-  
   setLoadingHours(true);
   try {
     const selectedSede = sedes.find(s => s.nombre === formData.sede);
@@ -114,15 +124,10 @@ export default function AgendamientoCitasPage() {
       setHorasDisponibles([]);
       return;
     }
-
-    const horas = await apiService.getHorasDisponiblesPublicas(
-      formData.appointmentDate, 
-      selectedSede.id
-    );
-    
+    // Usar la función pública y pasar los tipos correctos
+    const horas = await apiService.getHorasDisponiblesPublicas(formData.appointmentDate, selectedSede.id);
     setHorasDisponibles(horas || []);
-    
-    // Clear selected time if it's no longer available
+    // Limpiar hora seleccionada si ya no está disponible
     if (formData.appointmentTime && !horas.includes(formData.appointmentTime)) {
       setFormData(prev => ({
         ...prev,
@@ -162,7 +167,7 @@ export default function AgendamientoCitasPage() {
   const generateQRCode = async (citaData: { numeroCita: string }) => {
     try {
       // URL directa para verificación de la cita
-      const verificacionURL = `http://164.152.30.207:3000/verificar-cita?numero=${encodeURIComponent(citaData.numeroCita)}&cliente=${encodeURIComponent(clientData?.numeroCliente || '')}`;
+      const verificacionURL = `http://164.152.30.207:5000/verificar-cita?numero=${encodeURIComponent(citaData.numeroCita)}&cliente=${encodeURIComponent(clientData?.numeroCliente || '')}`;
       
       // Generar el código QR que apunta directamente a la URL de verificación
       const qrCodeDataURL = await QRCode.toDataURL(verificacionURL, {
@@ -348,15 +353,11 @@ export default function AgendamientoCitasPage() {
         
         {/* Page Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">
-            <span className="w-2 h-2 bg-[#56C2E1] rounded-full mr-2 animate-pulse"></span>
-            Agendamiento de Citas
-          </div>
           <h1 className="text-5xl font-bold text-[#203461] mb-4">
             Agende su
             <span className="bg-gradient-to-r from-[#1797D5] to-[#56C2E1] bg-clip-text text-transparent"> Cita</span>
           </h1>
-          <h2 className="text-2xl font-semibold text-[#1A6192] mb-6">ElectroHuila</h2>
+          <h2 className="text-2xl font-semibold text-[#203461] mb-6">ElectroHuila</h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Ingrese su número de cliente para verificar sus datos y agendar su cita
           </p>
@@ -366,9 +367,7 @@ export default function AgendamientoCitasPage() {
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
             <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+              <FontAwesomeIcon icon={faExclamationCircle} className="w-5 h-5 mr-2 text-red-500" />
               {error}
             </div>
           </div>
@@ -380,33 +379,54 @@ export default function AgendamientoCitasPage() {
             <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
               <div className="text-center mb-8">
                 <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#97D4E3] to-[#56C2E1] rounded-2xl flex items-center justify-center shadow-lg mb-6">
-                  <svg className="w-10 h-10 text-[#203461]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+                  <FontAwesomeIcon icon={faUser} className="w-10 h-10 text-[#203461]" />
                 </div>
                 <h2 className="text-2xl font-bold text-[#203461] mb-2">Verificación de Cliente</h2>
                 <p className="text-gray-600">Ingrese su número de cliente para continuar con el agendamiento</p>
               </div>
 
               <div className="space-y-6">
-                <ValidatedInput
-                  label="Número de Cliente"
-                  value={clientNumber}
-                  onChange={(value) => setClientNumber(value)}
-                  onBlur={() => {
-                    const validation = ValidationUtils.validateIdentificationNumber(clientNumber);
-                    setValidationErrors(prev => ({
-                      ...prev,
-                      clientNumber: validation.isValid ? '' : validation.message
-                    }));
-                  }}
-                  error={validationErrors.clientNumber}
-                  type="text"
-                  placeholder="Ej: 12345"
-                  required={true}
-                  pattern="[0-9]*"
-                  inputClassName="px-4 py-3 rounded-xl focus:ring-[#56C2E1]"
-                />
+                <div>
+                  <label htmlFor="numeroCliente" className="block text-sm font-semibold text-[#203461] mb-2">
+                    Número de Cliente <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="numeroCliente"
+                    name="numeroCliente"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                    maxLength={15}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#56C2E1] focus:border-transparent outline-none transition-all duration-300 text-lg text-center"
+                    placeholder="Ej: 123456"
+                    value={clientNumber}
+                    onChange={e => {
+                      // Solo permitir números
+                      const value = e.target.value.replace(/[^0-9]/g, '');
+                      setClientNumber(value);
+                    }}
+                    onKeyDown={e => {
+                      // Permitir solo números, backspace, tab, delete, flechas
+                      if (!/^[0-9]$/.test(e.key) && !['Backspace','Tab','Delete','ArrowLeft','ArrowRight','Home','End'].includes(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onPaste={e => {
+                      // Bloquear pegar si no es solo números
+                      const text = e.clipboardData.getData('text');
+                      if (!/^\d+$/.test(text)) {
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                  {validationErrors.clientNumber && (
+                    <div className="text-red-600 text-sm mt-1 flex items-center">
+                      <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-1 text-red-500" />
+                      {validationErrors.clientNumber}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={buscarCliente}
@@ -440,29 +460,25 @@ export default function AgendamientoCitasPage() {
                   onClick={() => setStep('client')}
                   className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl font-medium hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 mb-6"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-                  </svg>
+                  <FontAwesomeIcon icon={faArrowLeft} className="w-4 h-4 mr-2" />
                   Volver a verificación
                 </button>
 
-                <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-2xl p-4 mb-8">
-                  <p className="text-red-700 text-sm font-medium flex items-center">
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Debe presentarse 10 minutos antes de la hora agendada
-                  </p>
-                </div>
+                {showFormWarning && (
+                  <div className="bg-[#FFF9DB] border border-[#FFE066] rounded-2xl p-4 mb-8 transition-opacity duration-500">
+                    <p className="text-[#856404] text-sm font-medium flex items-center">
+                      <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-2 text-yellow-500" />
+                      Debe presentarse 10 minutos antes de la hora agendada
+                    </p>
+                  </div>
+                )}
               </div>
 
               <form onSubmit={handleFormSubmit} className="space-y-8">
                 {/* Datos del Cliente Verificado */}
                 <div className="bg-gradient-to-r from-[#97D4E3]/5 to-[#56C2E1]/5 rounded-2xl p-6 border border-[#56C2E1]/10">
                   <h4 className="text-xl font-semibold text-[#203461] mb-6 flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <FontAwesomeIcon icon={faCheckCircle} className="w-5 h-5 mr-2 text-green-500" />
                     Cliente Verificado
                   </h4>
                   
@@ -471,7 +487,7 @@ export default function AgendamientoCitasPage() {
                       <label className="block text-sm font-semibold text-[#203461] mb-1">
                         Número de Cliente
                       </label>
-                      <p className="text-lg font-bold text-[#1797D5]">{clientData.numeroCliente}</p>
+                      <p className="text-lg font-bold text-[#203461]">{clientData.numeroCliente}</p>
                     </div>
 
                     <div className="bg-white/50 rounded-xl p-4">
@@ -505,9 +521,7 @@ export default function AgendamientoCitasPage() {
 
                   <div className="bg-green-50 border border-green-200 rounded-xl p-4">
                     <p className="text-green-700 text-sm flex items-center">
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                      <FontAwesomeIcon icon={faCheckCircle} className="w-4 h-4 mr-2 text-green-500" />
                       Cliente verificado exitosamente. Si algún dato no es correcto, contacte al 608 8664600.
                     </p>
                   </div>
@@ -516,9 +530,7 @@ export default function AgendamientoCitasPage() {
                 {/* Detalles de la Cita */}
                 <div className="bg-gradient-to-r from-[#97D4E3]/5 to-[#56C2E1]/5 rounded-2xl p-6 border border-[#56C2E1]/10">
                   <h4 className="text-xl font-semibold text-[#203461] mb-6 flex items-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                    <FontAwesomeIcon icon={faCalendarAlt} className="w-5 h-5 mr-2 text-blue-500" />
                     Detalles de la Cita
                   </h4>
 
@@ -549,9 +561,7 @@ export default function AgendamientoCitasPage() {
                       </select>
                       {validationErrors.motivo && (
                         <div className="text-red-600 text-sm mt-1 flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-1 text-red-500" />
                           {validationErrors.motivo}
                         </div>
                       )}
@@ -582,9 +592,7 @@ export default function AgendamientoCitasPage() {
                       </select>
                       {validationErrors.sede && (
                         <div className="text-red-600 text-sm mt-1 flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-1 text-red-500" />
                           {validationErrors.sede}
                         </div>
                       )}
@@ -611,9 +619,7 @@ export default function AgendamientoCitasPage() {
                       />
                       {validationErrors.appointmentDate && (
                         <div className="text-red-600 text-sm mt-1 flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
+                          <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-1 text-red-500" />
                           {validationErrors.appointmentDate}
                         </div>
                       )}
@@ -650,9 +656,9 @@ export default function AgendamientoCitasPage() {
                         <button
                           type="button"
                           onClick={loadHorasDisponibles}
-                          className="mt-4 text-[#1797D5] hover:text-[#56C2E1] font-medium text-sm"
+                          className="mt-4 text-[#1797D5] hover:text-[#56C2E1] font-medium text-sm flex items-center"
                         >
-                          🔄 Recargar horarios
+                          <FontAwesomeIcon icon={faSyncAlt} className="w-4 h-4 mr-1" /> Recargar horarios
                         </button>
                       )}
                     </div>
@@ -691,9 +697,9 @@ export default function AgendamientoCitasPage() {
                         <button
                           type="button"
                           onClick={loadHorasDisponibles}
-                          className="text-[#1797D5] hover:text-[#56C2E1] font-medium text-sm"
+                          className="text-[#1797D5] hover:text-[#56C2E1] font-medium text-sm flex items-center"
                         >
-                          🔄 Actualizar
+                          <FontAwesomeIcon icon={faSyncAlt} className="w-4 h-4 mr-1" /> Actualizar
                         </button>
                       </div>
                     </>
@@ -701,9 +707,7 @@ export default function AgendamientoCitasPage() {
                   
                   {validationErrors.appointmentTime && (
                     <div className="text-red-600 text-sm mt-2 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+                      <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-1 text-red-500" />
                       {validationErrors.appointmentTime}
                     </div>
                   )}
@@ -736,19 +740,17 @@ export default function AgendamientoCitasPage() {
                     className="w-full md:w-auto bg-gradient-to-r from-[#203461] to-[#1797D5] text-white px-12 py-4 rounded-xl font-bold text-lg hover:from-[#1A6192] hover:to-[#56C2E1] transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {loading ? (
-                      <div className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Agendando Cita...
-                      </div>
+                        <div className="flex items-center justify-center">
+                          <span className="animate-spin -ml-1 mr-3 h-5 w-5 text-white">
+                            <FontAwesomeIcon icon={faSyncAlt} className="w-5 h-5" />
+                          </span>
+                          Agendando Cita...
+                        </div>
                     ) : (
                       <>
-                        📅 Agendar Cita
-                        <svg className="w-5 h-5 ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                        </svg>
+                        <FontAwesomeIcon icon={faCalendarAlt} className="w-5 h-5 mr-2 inline" />
+                        Agendar Cita
+                        <FontAwesomeIcon icon={faArrowRight} className="w-5 h-5 ml-2 inline" />
                       </>
                     )}
                   </button>
@@ -765,12 +767,10 @@ export default function AgendamientoCitasPage() {
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden">
                 <div className="p-8">
                   <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
+                    <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#7EE6B7] to-[#20B26C] rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                      <FontAwesomeIcon icon={faCheckCircle} className="w-8 h-8 text-[#20B26C]" />
                     </div>
-                    <h3 className="text-3xl font-bold text-green-600 mb-2">
+                    <h3 className="text-3xl font-bold mb-2" style={{ color: '#7EE6B7' }}>
                       ¡Cita Agendada Exitosamente!
                     </h3>
                     <p className="text-[#1A6192] text-lg">
@@ -819,8 +819,9 @@ export default function AgendamientoCitasPage() {
                   </div>
 
                   <div className="space-y-4 mb-8">
-                    <h4 className="text-xl font-semibold text-[#203461] border-b border-gray-200 pb-2">
-                      📋 Resumen de su Cita
+                    <h4 className="text-xl font-semibold text-[#203461] border-b border-gray-200 pb-2 flex items-center">
+                      <FontAwesomeIcon icon={faCheckCircle} className="w-5 h-5 mr-2 text-blue-500" />
+                      Resumen de su Cita
                     </h4>
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -850,11 +851,9 @@ export default function AgendamientoCitasPage() {
                       </div>
                     </div>
 
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mt-6">
-                      <p className="text-red-700 text-sm font-medium flex items-center">
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
+                    <div className="bg-[#FFF9DB] border border-[#FFE066] rounded-xl p-4 mt-6">
+                      <p className="text-[#856404] text-sm font-medium flex items-center">
+                        <FontAwesomeIcon icon={faExclamationCircle} className="w-4 h-4 mr-2 text-yellow-500" />
                         Recuerde presentarse 10 minutos antes de la hora programada
                       </p>
                     </div>
@@ -865,9 +864,7 @@ export default function AgendamientoCitasPage() {
                       onClick={handlePrint}
                       className="flex-1 bg-gradient-to-r from-[#203461] to-[#1797D5] text-white px-6 py-3 rounded-xl font-semibold hover:from-[#1A6192] hover:to-[#56C2E1] transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center"
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                      </svg>
+                      <FontAwesomeIcon icon={faPrint} className="w-5 h-5 mr-2" />
                       Imprimir Comprobante
                     </button>
                     
@@ -875,9 +872,7 @@ export default function AgendamientoCitasPage() {
                       onClick={handleNewRequest}
                       className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center"
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-                      </svg>
+                      <FontAwesomeIcon icon={faPlus} className="w-5 h-5 mr-2" />
                       Nueva Cita
                     </button>
                   </div>
@@ -1009,7 +1004,7 @@ export default function AgendamientoCitasPage() {
           </div>
           
           <div className="mt-8 pt-8 border-t border-white/20 text-center text-white/70 text-sm">
-            © 2025 ElectroHuila S.A. E.S.P. - Todos los derechos reservados
+            © <span className="note-year">{new Date().getFullYear()}</span> ElectroHuila S.A. E.S.P. - Todos los derechos reservados
           </div>
         </div>
       </footer>

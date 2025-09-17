@@ -3041,8 +3041,8 @@ const handleUpdateHoraDisponible = async () => {
             />
           </div>
           
-          <div className="text-center text-white/70 text-sm">
-            © 2025 ElectroHuila S.A. E.S.P. - Panel de Administración - Todos los derechos reservados
+          <div className="mt-8 pt-8 border-t border-white/20 text-center text-white/70 text-sm">
+            © <span className="note-year">{new Date().getFullYear()}</span> ElectroHuila S.A. E.S.P. - Todos los derechos reservados
           </div>
         </div>
       </footer>

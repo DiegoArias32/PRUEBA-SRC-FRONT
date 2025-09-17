@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import FixedHeader from '@/components/FixedHeader';
+import '@/app/fontawesome-init';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 export default function Home() {
   const router = useRouter();
@@ -47,16 +49,12 @@ export default function Home() {
         </div>
         
         <div className="relative max-w-6xl mx-auto px-4 py-20">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-2 bg-white/70 rounded-full text-[#1A6192] text-sm font-medium mb-6 shadow-sm">
-              <span className="w-2 h-2 bg-[#56C2E1] rounded-full mr-2 animate-pulse"></span>
-              Sistema Digital Integrado
-            </div>
+          <div className="text-center mb-16"> 
             <h1 className="text-6xl font-bold text-[#203461] mb-4 leading-tight">
               Sistema de
               <span className="bg-gradient-to-r from-[#1797D5] to-[#56C2E1] bg-clip-text text-transparent"> Servicios</span>
             </h1>
-            <h2 className="text-2xl font-semibold text-[#1A6192] mb-6">ElectroHuila</h2>
+            <h2 className="text-2xl font-semibold text-[#203461] mb-6">ElectroHuila</h2>
           </div>
 
  
@@ -70,9 +68,7 @@ export default function Home() {
                 {/* Icon Container */}
                 <div className="mb-8 relative">
                   <div className="w-20 h-20 mx-auto bg-gradient-to-br from-[#97D4E3] to-[#56C2E1] rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-10 h-10 text-[#203461]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h.5a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2H8zM9 5v2h6V5H9zm-4 8h14" />
-                    </svg>
+                    <FontAwesomeIcon icon="calendar-check" className="w-10 h-10 text-[#203461]" />
                   </div>
                   {/* Floating Elements */}
                   <div className="absolute -top-2 -right-2 w-4 h-4 bg-[#56C2E1] rounded-full animate-bounce opacity-60"></div>
@@ -157,7 +153,7 @@ export default function Home() {
           </div>
           
           <div className="mt-8 pt-8 border-t border-white/20 text-center text-white/70 text-sm">
-            © 2025 ElectroHuila S.A. E.S.P. - Todos los derechos reservados
+            © <span className="note-year">{new Date().getFullYear()}</span> ElectroHuila S.A. E.S.P. - Todos los derechos reservados
           </div>
         </div>
       </footer>
