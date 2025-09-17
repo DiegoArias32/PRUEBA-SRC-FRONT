@@ -162,7 +162,7 @@ export default function AgendamientoCitasPage() {
   const generateQRCode = async (citaData: { numeroCita: string }) => {
     try {
       // URL directa para verificación de la cita
-      const verificacionURL = `http://164.152.30.207:5000/verificar-cita?numero=${encodeURIComponent(citaData.numeroCita)}&cliente=${encodeURIComponent(clientData?.numeroCliente || '')}`;
+      const verificacionURL = `http://164.152.30.207:3000/verificar-cita?numero=${encodeURIComponent(citaData.numeroCita)}&cliente=${encodeURIComponent(clientData?.numeroCliente || '')}`;
       
       // Generar el código QR que apunta directamente a la URL de verificación
       const qrCodeDataURL = await QRCode.toDataURL(verificacionURL, {
